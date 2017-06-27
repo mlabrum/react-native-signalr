@@ -3,8 +3,9 @@ let signalRHubConnectionFunc;
 if (!window.addEventListener) {
   window.addEventListener = window.addEventListener = () => { };
 }
-window.navigator.userAgent = 'react-native';
-window.jQuery = require('./signalr-jquery-polyfill.js').default;
+
+if(!window.navigator.userAgent) window.navigator.userAgent = 'react-native';
+if(!window.jQuery) window.jQuery = require('./signalr-jquery-polyfill.js').default;
 
 export default {
   setLogger: (logger) => {
@@ -16,34 +17,38 @@ export default {
     window.console.debug = logger;
   },
   hubConnection: (serverUrl, options) => {
-    window.document = window.document || { readyState: 'complete' };
-    if (!signalRHubConnectionFunc) {
-      require('ms-signalr-client');
-      signalRHubConnectionFunc = window.jQuery.hubConnection;
-    }
-    const [protocol, host] = serverUrl.split(/\/\/|\//);
-    if (options && options.headers) {
-      window.jQuery.defaultAjaxHeaders = options.headers;
-    }
+  	if(!window.document) window.document = {readyState: 'complete'}
 
-    const hubConnectionFunc = signalRHubConnectionFunc(serverUrl, options);
-    const originalStart = hubConnectionFunc.start;
-    hubConnectionFunc.start = (...args) => {
-      window.document = window.document || { readyState: 'complete' };
-      window.document.createElement = () => {
-        return {
-          protocol,
-          host
-        };
-      };
-      window.location = {
-        protocol,
-        host
-      };
-      const returnValue = originalStart.apply(hubConnectionFunc, args);
-      window.document = undefined;
-      return returnValue;
-    };
+	if (!signalRHubConnectionFunc) {
+	  require('ms-signalr-client');
+	  signalRHubConnectionFunc = window.jQuery.hubConnection;
+	}
+
+	const [protocol, host] = serverUrl.split(/\/\/|\//);
+	if (options && options.headers) {
+	  window.jQuery.defaultAjaxHeaders = options.headers;
+	}
+	const hubConnectionFunc = signalRHubConnectionFunc(serverUrl, options);
+
+  	if(navigator.product === 'ReactNative'){
+		const originalStart = hubConnectionFunc.start;
+		hubConnectionFunc.start = (...args) => {
+			window.document = window.document || {readyState: 'complete'};
+			window.document.createElement = () => {
+				return {
+					protocol,
+					host
+				};
+			};
+			window.location = {
+				protocol,
+				host
+			};
+			const returnValue = originalStart.apply(hubConnectionFunc, args);
+			window.document = undefined;
+			return returnValue;
+		};
+	}
 
     return hubConnectionFunc;
   }
